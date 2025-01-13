@@ -1,6 +1,5 @@
 # Document ingestion and storage using RAG
 # Q&A results based on stored embeddings with the help of openAI
-# User Management App (Nestjs)
 # UI to manage Registration, Login, Logout and Document ingestion etc. (Angular - Typescript)
 
 # RAG API:
