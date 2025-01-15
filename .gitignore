@@ -151,8 +151,8 @@ django_rag_service/static
 
 # Frontend files
 frontend/node_modules
-frontend/client/.angular
-frontend/client/.vscode
+frontend/*/.angular
+frontend/*/.vscode
 frontend/node_modules
 
 .DS_Store

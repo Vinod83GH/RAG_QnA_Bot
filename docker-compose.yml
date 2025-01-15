@@ -18,10 +18,15 @@ services:
     env_file:
       - ./django_rag_service/config/.env
 
-  angular-app:
-    build: ./frontend
+  fe-angular-app:
+    container_name: "angulr-ui-app"
+    build:
+      context: ./frontend/dash-app  # Set the context to the directory containing Angular code
+      dockerfile: Dockerfile        # Dockerfile is inside the context directory
     ports:
-      - "80:80"
+      - "4200:4200"                 # Replace with your Angular app's port
+    volumes:
+      - ./frontend/dash-app:/app    # Optional, for live reloading during development
 
 
   database:

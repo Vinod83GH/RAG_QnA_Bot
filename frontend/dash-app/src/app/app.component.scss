@@ -1,0 +1,22 @@
+body, html {
+    margin: 0;
+    padding: 0;
+    height: 100%; /* Ensures the grid spans the entire viewport */
+    box-sizing: border-box;
+  }
+  
+  .main {
+    display: grid;
+    place-items: center; /* Centers the content inside the div */
+    width: 50vw;         /* 50% of viewport width */
+    height: 50vh;        /* 50% of viewport height */
+    margin: auto;        /* Centers the div in the viewport */
+    border: 5px solid lightgrey; /* Light grey border */
+    box-sizing: border-box;    /* Includes padding and border in width/height */
+    border-radius: 10px;       /* Optional: Rounded corners */
+  }
+  
+  .content {
+    text-align: center; /* Center text/content inside the main div */
+  }
+  

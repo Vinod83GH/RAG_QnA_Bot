@@ -1,8 +1,6 @@
 # Stage 1: Build the Angular app
 FROM node:18 AS build
 
-RUN mkdir -p /app
-
 # Set the working directory
 WORKDIR /app
 
@@ -11,9 +9,11 @@ COPY package*.json ./
 
 # Install dependencies
 RUN rm -rf node_modules && npm install
+# RUN npm install
 
-# Copy the Angular application source code
+# Copy the rest of the application files
 COPY . .
+
 
 # Build the Angular app for production
 RUN npm run build
@@ -22,7 +22,7 @@ RUN npm run build
 FROM nginx:stable-alpine
 
 # Copy built Angular app to NGINX's default html folder
-COPY --from=build /app/dist/your-angular-app-name /usr/share/nginx/html
+COPY --from=build /app/dist/dash-app /usr/share/nginx/html
 
 # Expose port 80
 EXPOSE 80
