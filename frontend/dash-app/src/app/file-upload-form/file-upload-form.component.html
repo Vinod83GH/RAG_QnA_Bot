@@ -1,0 +1,21 @@
+<div class="file-upload-container">
+    <h2>Upload Document</h2>
+    <form [formGroup]="uploadForm" (ngSubmit)="onSubmit()">
+        <!-- Text input -->
+        <div class="form-group">
+          <label for="collectionName">Collection Name:</label>
+          <input id="collectionName" type="text" formControlName="collectionName" />
+        </div>
+      
+        <!-- File input -->
+        <div class="form-group">
+          <label for="file">Upload File:</label>
+          <input id="file" type="file" (change)="onFileChange($event)" />
+        </div>
+      
+        <!-- Submit Button -->
+        <button type="submit" [disabled]="uploadForm.invalid">Upload</button>
+      </form>
+      
+  </div>
+  
