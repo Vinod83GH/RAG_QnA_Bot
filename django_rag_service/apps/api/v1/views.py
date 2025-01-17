@@ -62,6 +62,7 @@ def upload_file(request) -> Response:
     parser_classes = [MultiPartParser, FormParser]
 
     model_name = request.data.get('model_name')
+    collection_name = request.data.get('collection_name')
     file = request.FILES.get('file')
     if not file:
         return JsonResponse({'error': 'No file uploaded'}, status=400)
@@ -87,7 +88,7 @@ def upload_file(request) -> Response:
     )
 
     doc_manager.create_vector_store_from_document(file_path, **{
-        "collection_name": "QnA_doc_store"
+        "collection_name": collection_name
     })
 
     return Response(status=status.HTTP_200_OK, data="successfully store documents into vector store")
@@ -98,7 +99,7 @@ def upload_file(request) -> Response:
 @api_view(["POST"])
 def Question_n_Answer_Bot(request) -> Response:
     search_query = request.data.get('query_text')
-    model_name = ""
+    collection_name = request.data.get('collection_name')
 
     # Database config
     database_config = {
@@ -116,22 +117,17 @@ def Question_n_Answer_Bot(request) -> Response:
         **database_config
     )
 
-    kwargs = {}
-    results = doc_management_obj.search_relevent_document(
-        collection_name='QnA_doc_store',
-        query=search_query,
-        **kwargs
-    )
+    relevant_chunks = doc_management_obj.similarity_search(collection_name, search_query)
 
-    refined_contextual_prompt = generate_prompt(search_query,results)
+    answer = doc_management_obj.generate_answer(search_query, relevant_chunks)
 
-    openai.api_key = settings.OPENAI_API_KEY
-    gpt_response = openai.Completion.create(
-        model=settings.MODEL_NAME,
-        prompt=refined_contextual_prompt,
-        max_tokens=200,
-        temperature=0
-    )
-    refined_answer = gpt_response['choices'][0]['text'].strip()
+    print('answer based on relevant_chunks--> ', answer)
 
-    return Response(status=status.HTTP_200_OK, data=refined_answer)
+    print('relevant_chunks--> ', relevant_chunks)
+
+        # Step 3: Provide document links if needed
+    source = [{"source": chunk.metadata["source"]} for chunk in relevant_chunks]
+    
+    reponse_data =  {"answer": answer, "source": source}
+
+    return Response(status=status.HTTP_200_OK, data=reponse_data)

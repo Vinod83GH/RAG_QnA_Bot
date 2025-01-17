@@ -117,6 +117,10 @@ target/
 # dotenv
 .env
 
+
+*.pdf
+*.docx
+
 # virtualenv
 venv/
 ENV/
