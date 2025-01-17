@@ -11,6 +11,7 @@ def generate_prompt(user_question, results):
     Returns:
         str: The formatted prompt to send to OpenAI's API.
     """
+    print('retreived docs results --> ', results)
     # Combine retrieved documents into a context string
     retrieved_texts = "\n\n".join([f"Document {i+1}: {result[1]}" for i, result in enumerate(results)])
     
