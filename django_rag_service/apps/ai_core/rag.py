@@ -14,6 +14,9 @@ from langchain_openai import OpenAIEmbeddings
 # Langchain Document
 from langchain_core.documents import Document
 
+from langchain.chains.question_answering import load_qa_chain
+from langchain.llms import OpenAI
+
 from django.conf import settings
 
 
@@ -70,12 +73,26 @@ class DocumentManager():
             embedding_type - Type of embedding to be used.
                 - Default - openai (OpenAIEmbeddings)
         """
+        print('settings.OPENAI_ENDPOINT --> ',settings.OPENAI_ENDPOINT)
+        print('self.api_key --> ',self.api_key)
         if not embedding_type:
             # If not specified then use OpenAI
             return OpenAIEmbeddings(
                 openai_api_key=self.api_key,
                 openai_api_base=settings.OPENAI_ENDPOINT
             )
+    
+    # import os
+    # import psycopg2
+    # from langchain.text_splitter import RecursiveCharacterTextSplitter
+    # from langchain.embeddings import OpenAIEmbeddings
+    # from langchain.vectorstores.pgvector import PGVector
+
+    # def load_document_into_vectorstore(file_path):
+    #     # Parse the file based on type (PDF, DOCX, TXT)
+    #     # Use appropriate libraries like PyPDF2, python-docx, etc.
+    #     content = extract_text(file_path)  # Implement this based on file type
+    #     return content
 
     def load_document(self, path, file_extension='.docx'):
         """
@@ -278,6 +295,13 @@ class DocumentManager():
         # create vectore store
         return self.create_vector_store(embedding_function, doc_chunks, collection_name)
 
+
+    def generate_answer(self, question, relevant_chunks):
+        llm = OpenAI()
+        qa_chain = load_qa_chain(llm, chain_type="stuff")  # 'stuff' is a basic QA chain
+        answer = qa_chain.run(input_documents=relevant_chunks, question=question)
+        return answer
+    
     def get_existing_vector_store(self, collection_name):
         """
         Retrieves the existing PGVector object for the specified collection.
@@ -306,6 +330,40 @@ class DocumentManager():
         """
         vector_db = self.get_existing_vector_store(collection_name)
         return vector_db.similarity_search_with_score(query)
+    
+    def similarity_search_Old(self, collection_name, query):
+        """ Function for similarity search with score 
+            Input:
+                collection_name - Name of the collection where we have to search
+                query - Query to be searched
+            Output: searches the doc and returns similarity chunks with score
+        """
+        vector_db = self.get_existing_vector_store(collection_name)
+        return vector_db.similarity_search(query)
+
+    # from langchain.vectorstores.pgvector import PGVector
+
+    def search_relevant_chunks(self, question, db_conn):
+        embeddings = OpenAIEmbeddings()
+        query_embedding = embeddings.embed_query(question)
+        vectorstore = PGVector(
+            postgres_connection_string=self.get_pg_vector_connection_string(),
+            embeddings=embeddings,
+            table_name="document_chunks"
+        )
+        results = vectorstore.similarity_search(question, top_k=5)
+        return results
+
+    
+    def similarity_search(self, collection_name, query):
+        """ Function for similarity search with score 
+            Input:
+                collection_name - Name of the collection where we have to search
+                query - Query to be searched
+            Output: searches the doc and returns similarity chunks with score
+        """
+        vector_db = self.get_existing_vector_store(collection_name)
+        return vector_db.similarity_search(query, top_k=5)
 
     def search_relevent_document(self, collection_name, query, **kwargs):
         """

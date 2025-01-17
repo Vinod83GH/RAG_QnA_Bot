@@ -191,4 +191,4 @@ MIN_TIMESHEET_HRS = 0.1
 
 # Policy Collection and Model Name
 COLLECTION_NAME = os.environ.get("COLLECTION_NAME", "qna_documents")
-MODEL_NAME = os.environ.get("MODEL_NAME", "gpt-4o")
+MODEL_NAME = os.environ.get("MODEL_NAME", "gpt-4o-mini")

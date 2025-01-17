@@ -11,7 +11,7 @@ services:
       - .:/application
     user: appuser
     depends_on:
-      - database
+      - pgvector_db
     ports:
       - "8000:8000"
       - "5000:5000"
@@ -29,24 +29,24 @@ services:
       - ./frontend/dash-app:/app    # Optional, for live reloading during development
 
 
-  database:
-    image: postgres:latest
-    container_name: my-postgres
+  pgvector_db:
+    image: pgvector/pgvector:pg17
+    container_name: "rag-postgres-db"
     environment:
-      POSTGRES_USER: myuser
-      POSTGRES_PASSWORD: mypassword
-      POSTGRES_DB: mydatabase
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
     ports:
       - "5432:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - psql-data:/var/lib/postgresql/data
+      - .:/application
     restart: always
 
 
 volumes:
-  postgres_data:
+  psql-data:
     driver: local
 
-networks:
-  pgnetwork:
-    driver: bridge
+# networks:
+#   pgnetwork:
+#     driver: bridge
