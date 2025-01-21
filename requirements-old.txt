@@ -21,7 +21,8 @@ streamlit==1.31.0
 tiktoken==0.7.0
 docx2txt==0.8
 pgvector==0.2.5
-pypdf==4.2.0
+# pypdf==4.2.0
+
 
 # For shell_plus in lower env's
 django-extensions==3.2.3

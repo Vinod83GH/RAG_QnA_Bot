@@ -5,7 +5,9 @@ from rest_framework import status
 from rest_framework.response import Response
 from django.conf import settings
 from rest_framework.parsers import MultiPartParser, FormParser
-from langchain_openai import ChatOpenAI
+
+
+import psycopg2
 import openai
 
 
@@ -61,8 +63,8 @@ async def check_db_connection(request) -> Response:
 def upload_file(request) -> Response:
     parser_classes = [MultiPartParser, FormParser]
 
-    model_name = request.data.get('model_name')
-    collection_name = request.data.get('collection_name')
+    model_name = request.data.get('model_name') # LLM Model used for storage - text-embedding-ada-002
+    # collection_name = request.data.get('collection_name') # Table name
     file = request.FILES.get('file')
     if not file:
         return JsonResponse({'error': 'No file uploaded'}, status=400)
@@ -88,16 +90,22 @@ def upload_file(request) -> Response:
     )
 
     doc_manager.create_vector_store_from_document(file_path, **{
-        "collection_name": collection_name
+        "collection_name": "my_docs"
     })
 
-    return Response(status=status.HTTP_200_OK, data="successfully store documents into vector store")
+    return Response(status=status.HTTP_200_OK, data=f"File {filename}, successfully stored into vector store")
 
 
 # CSRF exempt view for handling file uploads
 @csrf_exempt
 @api_view(["POST"])
 def Question_n_Answer_Bot(request) -> Response:
+    '''
+    open AI Models used in this API
+    gpt-4o-mini
+    text-embedding-ada-002
+    gpt-3.5-turbo-instruct
+    '''
     search_query = request.data.get('query_text')
     collection_name = request.data.get('collection_name')
 
@@ -131,3 +139,56 @@ def Question_n_Answer_Bot(request) -> Response:
     reponse_data =  {"answer": answer, "source": source}
 
     return Response(status=status.HTTP_200_OK, data=reponse_data)
+
+
+# async def upload_documents(request) -> Response:
+#     # save_document_and_chunks()
+
+
+# # Define serializers
+# class DocumentSerializer(serializers.ModelSerializer):
+#     class Meta:
+#         model = Document
+#         fields = ['id', 'title', 'content', 'file_path']
+
+# class DocumentChunkSerializer(serializers.ModelSerializer):
+#     class Meta:
+#         model = DocumentChunk
+#         fields = ['id', 'document', 'chunk_index', 'content']
+
+    # Function to save document and chunks using DRF ORM
+
+@csrf_exempt
+@api_view(["POST"])
+async def query_documents(request) -> Response:
+
+    # Database config
+    database_config = {
+        "host": settings.DATABASES['default']['HOST'],
+        "database": settings.DATABASES['default']['NAME'],
+        "user": settings.DATABASES['default']['USER'],
+        "password": settings.DATABASES['default']['PASSWORD'],
+        "port": settings.DATABASES['default']['PORT']
+    }
+
+    search_query = request.data.get('query')
+
+    # Call to the DocumentManager
+    doc_management_obj = DocumentManager(
+        model_name=  settings.MODEL_NAME,
+        api_key=settings.OPENAI_API_KEY,
+        **database_config
+    )
+    
+    # Step 1: Search for relevant chunks
+    relevant_chunks = doc_management_obj.search_relevant_chunks(search_query)
+    
+    # Step 2: Generate a concise answer
+    answer = doc_management_obj.generate_answer(search_query, relevant_chunks)
+    
+    # Step 3: Provide document links if needed
+    links = [{"title": chunk.metadata["title"], "link": chunk.metadata["file_path"]} for chunk in relevant_chunks]
+    
+    response_data =  {"answer": answer, "links": links}
+
+    return Response(status=status.HTTP_200_OK, data=response_data)
