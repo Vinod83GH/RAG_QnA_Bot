@@ -16,6 +16,14 @@ from langchain_core.documents import Document
 
 from langchain.chains.question_answering import load_qa_chain
 from langchain.llms import OpenAI
+from apps.utils.data_loader import load_document
+
+
+from django.db import transaction
+# from apps.api.models import Document, DocumentChunk
+
+# from PyPDF2 import PdfReader
+
 
 from django.conf import settings
 
@@ -108,6 +116,12 @@ class DocumentManager():
         Returns:
             str: The loaded document content.
         """
+
+        self.allowed_doc_types = {
+            '.docx': Docx2txtLoader,
+            '.pdf': PyPDFLoader
+        }
+
         allowed_doc_types = self.allowed_doc_types.keys()
 
         if file_extension not in allowed_doc_types:
@@ -126,10 +140,10 @@ class DocumentManager():
         """
         # Default chunk size
         if not chunk_size:
-            chunk_size = 350
+            chunk_size = 500
         # Default chunk overlap number
         if not chunk_overlap:
-            chunk_overlap = 120
+            chunk_overlap = 50
 
         encoding = tiktoken.encoding_for_model(self.model_name)
         end_line_to_split = "--END--"
@@ -203,6 +217,7 @@ class DocumentManager():
             model_name=self.model_name,
             encoding_name=encoding
         )
+        print('docs_to_split_further_with_meta -->', docs_to_split_further_with_meta)
         for key, doc_values in docs_to_split_further_with_meta.items():
             if doc_values["page_content"]:
                 document_data = Document(
@@ -224,6 +239,24 @@ class DocumentManager():
         """
         # Delete existing collection and create new from the document provided
         pg_vector_db = PGVector.from_documents(
+            embedding=embedding_func,
+            documents=document_chunks,
+            collection_name=collection_name,
+            connection_string=self.connection_string,
+            pre_delete_collection=False,
+        )
+
+        return pg_vector_db
+
+    def add_update_vector_store(self, embedding_func,  document_chunks, collection_name):
+        """ Method to create vector from doc chunks using embedding func & store in vectore DB
+            Params:
+                embedding_func - embedding function to use for embedding
+                document_chunks - list of splitted document into smaller chunks
+                collection_name - name of collection in Vector db to store the data
+        """
+        # Delete existing collection and create new from the document provided
+        pg_vector_db = PGVector.add_documents(
             embedding=embedding_func,
             documents=document_chunks,
             collection_name=collection_name,
@@ -280,7 +313,91 @@ class DocumentManager():
         filename, file_extension = os.path.splitext(file_path)
 
         # load document
-        document = self.load_document(file_path, file_extension)
+        # document = self.load_document(file_path, file_extension)
+        document = load_document(file_path, file_extension)
+
+        # get document embedding to store with
+        embedding_function = self.get_embedding()
+
+        # split the loaded document into small chunks
+        doc_chunks = self.split_document_into_chunks(document)
+
+        # create vectore store into collection
+        return self.create_vector_store(embedding_function, doc_chunks, collection_name)
+
+
+    def chunk_document(self, content):
+        text_splitter = RecursiveCharacterTextSplitter(
+            chunk_size=500,  # Adjust chunk size as needed
+            chunk_overlap=50  # Small overlap to preserve context
+        )
+        chunks = text_splitter.split_text(content)
+        return chunks
+    
+    def extract_pdf(self, filepath):
+        full_content =''
+        # Read and extract text from the uploaded PDF
+        # reader = PdfReader(filepath)
+        for page in reader.pages:
+            full_content += page.extract_text() + "\n"
+
+        print('Extracted full pdf content ->> ', full_content)
+
+        return full_content
+
+    def save_document_and_chunks(self, filename, document_content, file_path, doc_chunks):
+        try:
+            # new_document_id = 0
+            # with transaction.atomic():
+            #     # Create and save the document
+            #     document = Document.objects.create(
+            #         title=filename,
+            #         content=document_content,
+            #         file_path=file_path
+            #     )
+            #     new_document_id = document.id
+            #     print(f'New document created with ID: {new_document_id}')
+
+                # # Create and save document chunks
+                # for index, chunk in enumerate(doc_chunks):
+                #     document_chunk = DocumentChunk.objects.create(
+                #         document=document,
+                #         chunk_index=index,
+                #         content=chunk
+                #     )
+                #     print(f'New chunk created with ID: {document_chunk.id}')
+
+                print('Final DB commit on document and chunks creation')
+
+        except Exception as e:
+            print(f'Error occurred: {e}')
+            raise
+        
+        # return new_document_id
+
+
+    def Load_document_chunks_separately(self, file_path):
+        """ Method to create vector store from a document 
+            This involves below steps:
+                1. Load document
+                2. split document into small chunks
+                3. embed the chunks
+                4. store embedded chinks into vector db
+            Params:
+                file_path - path to doc/file
+                kwargs - additional keyword args
+                    - collection_name (Required) - name of the collection to be stored in vector database
+            Returns True on success
+        """
+        # collection_name = kwargs['collection_name']
+        # db_conn = kwargs['db_conn']
+        # meta_data = kwargs['meta_data']
+
+        filename, file_extension = os.path.splitext(file_path)
+
+        # load document
+        # document = self.load_document(file_path, file_extension)
+        doc_content = self.extract_pdf(file_path)
         # # After document got loaded, update the metadata
         # for each_chunk in document:
         #     # If loaded from S3 then put the s3 path in meta, else it will auto take the local file path in meta
@@ -289,18 +406,105 @@ class DocumentManager():
 
         #     each_chunk.metadata.update(meta_data)
         # specify type of embedding function to be used
-        embedding_function = self.get_embedding()
+        # embedding_function = self.get_embedding()
         # split the loaded document into small chunks
-        doc_chunks = self.split_document_into_chunks(document)
-        # create vectore store
-        return self.create_vector_store(embedding_function, doc_chunks, collection_name)
+        # print('Loaded document --> ', document[0].page_content)
+        # doc_chunks = self.chunk_document(document[0].page_content)
 
+        # db_conn = psycopg2.connect("dbname=postgres user=postgres password=postgres host=pgvector_db port=5432")
+
+        # with db_conn.cursor() as cursor:
+        #     # Insert document metadata
+        #     cursor.execute(
+        #         "INSERT INTO documents (title, content, file_path) VALUES (%s, %s, %s) RETURNING id",
+        #         (filename, document[0].page_content, file_path)
+        #     )
+        #     document_id = cursor.fetchone()[0]
+        #     print('new document_id created -->', document_id)
+            
+        #     # Insert chunks
+        #     # embeddings = OpenAIEmbeddings()
+        #     for index, chunk in enumerate(doc_chunks):
+        #         # embedding = embeddings.embed_text(chunk)
+        #         cursor.execute(
+        #             "INSERT INTO document_chunks (document_id, chunk_index, content) VALUES (%s, %s, %s)",
+        #             (document_id, index, chunk)
+        #         )
+        #         chunk_id = cursor.fetchone()[0]
+        #         print('new chunk_id created -->', chunk_id)
+        #         # cursor.execute(
+        #         #     "UPDATE document_chunks SET embedding = %s WHERE id = %s",
+        #         #     (embedding, chunk_id)
+        #         # )
+        # db_conn.commit()
+        # print('Final DB commit on document and chunks creation', chunk_id)
+
+        chunks = self.chunk_document(doc_content)
+
+        new_document_id = self.save_document_and_chunks(filename, doc_content, file_path, chunks)
+        
+        # Finally update Embeddings for each chunks
+        self.update_embeddings_for_document(new_document_id)
+
+        print('Document store successfully !')
+
+        # return chunk_id
+    
+    def update_embeddings_for_document(self, document_id):
+
+        embeddings = OpenAIEmbeddings()
+        try:
+            with transaction.atomic():
+                chunks = DocumentChunk.objects.filter(document__id=document_id)
+                print('Chunks fetched -->', chunks)
+
+                for chunk in chunks:
+                    embedding = embeddings.embed_text(chunk.content)
+                    chunk.embedding = embedding
+                    chunk.save()
+                    print(f'Chunk Id - {chunk.id} | document Id - {document_id} : updated with embedding')
+
+                print('Final commit on embedding update')
+        except Exception as e:
+            print(f'Error occurred in update enbeddings for document id - {document_id}: {e}')
+            raise
+        
+
+        # embeddings = OpenAIEmbeddings()
+        # with db_conn.cursor() as cursor:
+        #     cursor.execute("SELECT id, content FROM document_chunks")
+        #     chunks = cursor.fetchall()
+        #     print('chunks fecthed --> ', chunks)
+        #     for chunk_id, chunk_content in chunks:
+        #         embedding = embeddings.embed_text(chunk_content)
+        #         cursor.execute(
+        #             "UPDATE document_chunks SET embedding = %s WHERE id = %s",
+        #             (embedding, chunk_id)
+        #         )
+        #         print('chunks updated with embedding')
+        
+        # db_conn.commit()
+        # print('Final commit on embedding update')
 
     def generate_answer(self, question, relevant_chunks):
         llm = OpenAI()
         qa_chain = load_qa_chain(llm, chain_type="stuff")  # 'stuff' is a basic QA chain
         answer = qa_chain.run(input_documents=relevant_chunks, question=question)
         return answer
+    
+    # from langchain.vectorstores.pgvector import PGVector
+
+    def search_relevant_chunks(self, question):
+        embeddings = OpenAIEmbeddings()
+        # query_embedding = embeddings.embed_query(question)
+        vectorstore = PGVector(
+            postgres_connection_string=self.connection_string,
+            embeddings=embeddings,
+            table_name="document_chunks"
+        )
+        results = vectorstore.similarity_search(question, top_k=5)
+        return results
+
     
     def get_existing_vector_store(self, collection_name):
         """
@@ -342,17 +546,6 @@ class DocumentManager():
         return vector_db.similarity_search(query)
 
     # from langchain.vectorstores.pgvector import PGVector
-
-    def search_relevant_chunks(self, question, db_conn):
-        embeddings = OpenAIEmbeddings()
-        query_embedding = embeddings.embed_query(question)
-        vectorstore = PGVector(
-            postgres_connection_string=self.get_pg_vector_connection_string(),
-            embeddings=embeddings,
-            table_name="document_chunks"
-        )
-        results = vectorstore.similarity_search(question, top_k=5)
-        return results
 
     
     def similarity_search(self, collection_name, query):
