@@ -1,3 +1,4 @@
+
 # Document ingestion and storage using vector stores and openAI embeddings in postgres
   - Used Langchain (framework to integrate LLM), PGVector (for Postgres DB)  and openAI embeddings for document storage solution.
 # Q&A queries on stored documents (PDF and Word docx) and result optimization with the help of chatgpt tool
@@ -10,3 +11,4 @@ Rest API's:
     
   **Api to query stored documents**
   - api/v1/question-answer-bot
+
