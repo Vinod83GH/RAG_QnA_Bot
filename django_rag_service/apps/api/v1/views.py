@@ -64,7 +64,7 @@ def upload_file(request) -> Response:
     parser_classes = [MultiPartParser, FormParser]
 
     model_name = request.data.get('model_name') # LLM Model used for storage - text-embedding-ada-002
-    # collection_name = request.data.get('collection_name') # Table name
+    collection_name = request.data.get('collection_name') # Table name
     file = request.FILES.get('file')
     if not file:
         return JsonResponse({'error': 'No file uploaded'}, status=400)
@@ -90,7 +90,7 @@ def upload_file(request) -> Response:
     )
 
     doc_manager.create_vector_store_from_document(file_path, **{
-        "collection_name": "my_docs"
+        "collection_name": collection_name
     })
 
     return Response(status=status.HTTP_200_OK, data=f"File {filename}, successfully stored into vector store")
