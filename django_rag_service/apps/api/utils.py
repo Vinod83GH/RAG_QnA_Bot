@@ -5,22 +5,6 @@ from rest_framework.response import Response
 from rest_framework.views import exception_handler
 
 
-"""
-The following define standard formats for the responses.
-
-Usage:
-    from apps.api.utils import format_response
-    if 'error' in request.query_params:
-        # The business error condition
-        data = {
-            'internal_message': "Handle something",
-            'external_message': "Oops! Something went wrong. Try again later"
-        }
-        response_data = format_response("ERROR_RESPONSE", data, 400)
-    else:
-        response_data = format_response("SUCCESS_RESPONSE", serializer.data, status.HTTP_200_OK)
-    return Response(response_data)
-"""
 
 
 BUSINESS_ERROR_CODE = 'business'
