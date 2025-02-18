@@ -14,7 +14,7 @@ import openai
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.core.files.storage import FileSystemStorage
-from apps.ai_core.rag import DocumentManager
+from apps.ai_core.rag import DocManager
 from apps.ai_core.prompts.openai_tools_prompt import generate_prompt
 
 @csrf_exempt
@@ -41,8 +41,8 @@ async def check_db_connection(request) -> Response:
         "port": settings.DATABASES['default']['PORT']
     }
 
-    # Call to the DocumentManager
-    doc_manager = DocumentManager(
+    # Call to the DocManager
+    doc_manager = DocManager(
         model_name= "qna_table",
         api_key=settings.OPENAI_API_KEY,
         **database_config
@@ -82,8 +82,8 @@ def upload_file(request) -> Response:
         "port": settings.DATABASES['default']['PORT']
     }
 
-    # Call to the DocumentManager
-    doc_manager = DocumentManager(
+    # Call to the DocManager
+    doc_manager = DocManager(
         model_name= model_name,
         api_key=settings.OPENAI_API_KEY,
         **database_config
@@ -118,8 +118,8 @@ def Question_n_Answer_Bot(request) -> Response:
         "port": settings.DATABASES['default']['PORT']
     }
 
-    # Call to the DocumentManager
-    doc_management_obj = DocumentManager(
+    # Call to the DocManager
+    doc_management_obj = DocManager(
         model_name=  settings.MODEL_NAME,
         api_key=settings.OPENAI_API_KEY,
         **database_config
@@ -173,8 +173,8 @@ async def query_documents(request) -> Response:
 
     search_query = request.data.get('query')
 
-    # Call to the DocumentManager
-    doc_management_obj = DocumentManager(
+    # Call to the DocManager
+    doc_management_obj = DocManager(
         model_name=  settings.MODEL_NAME,
         api_key=settings.OPENAI_API_KEY,
         **database_config
