@@ -20,7 +20,7 @@ from apps.utils.data_loader import load_document
 
 
 from django.db import transaction
-# from apps.api.models import Document, DocumentChunk
+from apps.api.models import Document, DocumentChunk
 
 # from PyPDF2 import PdfReader
 
@@ -28,10 +28,7 @@ from django.db import transaction
 from django.conf import settings
 
 
-class DocumentManager():
-    """ Class to Manage the Document using RAG architecture which involves below operations
-        - Load document - Split doc - Index doc - Store - Search doc and other related operations
-    """
+class DocManager():
     def __init__(self, model_name, api_key, **kwargs):
         """ Init class with the required params
             Params:
@@ -89,33 +86,8 @@ class DocumentManager():
                 openai_api_key=self.api_key,
                 openai_api_base=settings.OPENAI_ENDPOINT
             )
-    
-    # import os
-    # import psycopg2
-    # from langchain.text_splitter import RecursiveCharacterTextSplitter
-    # from langchain.embeddings import OpenAIEmbeddings
-    # from langchain.vectorstores.pgvector import PGVector
-
-    # def load_document_into_vectorstore(file_path):
-    #     # Parse the file based on type (PDF, DOCX, TXT)
-    #     # Use appropriate libraries like PyPDF2, python-docx, etc.
-    #     content = extract_text(file_path)  # Implement this based on file type
-    #     return content
 
     def load_document(self, path, file_extension='.docx'):
-        """
-        Load a document from the specified path.
-
-        Args:
-            path (str): The path to the document file.
-            file_extension (str, optional): The extension type of the document. Defaults to '.docx'.
-
-        Raises:
-            Exception: If the document type is not allowed.
-
-        Returns:
-            str: The loaded document content.
-        """
 
         self.allowed_doc_types = {
             '.docx': Docx2txtLoader,
@@ -133,11 +105,7 @@ class DocumentManager():
         return docx_loader.load()
 
     def split_document_into_chunks(self, document_data, chunk_size=None, chunk_overlap=None):
-        """ Method to split the documents into the chunks of defined size
-            Params:
-                chunk_size - split the doc into chunks with this as the max size 
-                chunk_overlap specifies the number of overlapping tokens between consecutive chunks.
-        """
+
         # Default chunk size
         if not chunk_size:
             chunk_size = 500
@@ -231,12 +199,6 @@ class DocumentManager():
         return document_chunks
 
     def create_vector_store(self, embedding_func,  document_chunks, collection_name):
-        """ Method to create vector from doc chunks using embedding func & store in vectore DB
-            Params:
-                embedding_func - embedding function to use for embedding
-                document_chunks - list of splitted document into smaller chunks
-                collection_name - name of collection in Vector db to store the data
-        """
         # Delete existing collection and create new from the document provided
         pg_vector_db = PGVector.from_documents(
             embedding=embedding_func,
@@ -249,12 +211,6 @@ class DocumentManager():
         return pg_vector_db
 
     def add_update_vector_store(self, embedding_func,  document_chunks, collection_name):
-        """ Method to create vector from doc chunks using embedding func & store in vectore DB
-            Params:
-                embedding_func - embedding function to use for embedding
-                document_chunks - list of splitted document into smaller chunks
-                collection_name - name of collection in Vector db to store the data
-        """
         # Delete existing collection and create new from the document provided
         pg_vector_db = PGVector.add_documents(
             embedding=embedding_func,
@@ -267,18 +223,6 @@ class DocumentManager():
         return pg_vector_db
   
     def get_retriever(self, vector_db, type, **kwargs):
-        """
-        Returns a retriever object based on the specified type.
-
-        Parameters:
-            vector_db (VectorDB): The vector database used for retrieval.
-            type (str): The type of retriever to create.
-            **kwargs: Additional keyword arguments to pass to the retriever constructor.
-
-        Returns:
-            Retriever: A retriever object based on the specified type.
-
-        """
         # Use vector store-backed retriever as a default retriever
         if not type:
 
@@ -295,18 +239,6 @@ class DocumentManager():
             return retriever
 
     def create_vector_store_from_document(self, file_path, **kwargs):
-        """ Method to create vector store from a document 
-            This involves below steps:
-                1. Load document
-                2. split document into small chunks
-                3. embed the chunks
-                4. store embedded chinks into vector db
-            Params:
-                file_path - path to doc/file
-                kwargs - additional keyword args
-                    - collection_name (Required) - name of the collection to be stored in vector database
-            Returns True on success
-        """
         collection_name = kwargs['collection_name']
         # meta_data = kwargs['meta_data']
 
@@ -377,18 +309,7 @@ class DocumentManager():
 
 
     def Load_document_chunks_separately(self, file_path):
-        """ Method to create vector store from a document 
-            This involves below steps:
-                1. Load document
-                2. split document into small chunks
-                3. embed the chunks
-                4. store embedded chinks into vector db
-            Params:
-                file_path - path to doc/file
-                kwargs - additional keyword args
-                    - collection_name (Required) - name of the collection to be stored in vector database
-            Returns True on success
-        """
+
         # collection_name = kwargs['collection_name']
         # db_conn = kwargs['db_conn']
         # meta_data = kwargs['meta_data']
@@ -507,15 +428,6 @@ class DocumentManager():
 
     
     def get_existing_vector_store(self, collection_name):
-        """
-        Retrieves the existing PGVector object for the specified collection.
-
-        Parameters:
-        collection_name (str): The name of the collection.
-
-        Returns:
-        PGVector: The existing PGVector object for the specified collection.
-        """
         # specify type of embedding used to embed the doc earlier
         embedding_func = self.get_embedding()
         # return existing PGVector
@@ -526,22 +438,10 @@ class DocumentManager():
         )
 
     def similarity_search_with_score(self, collection_name, query):
-        """ Function for similarity search with score 
-            Input:
-                collection_name - Name of the collection where we have to search
-                query - Query to be searched
-            Output: searches the doc and returns similarity chunks with score
-        """
         vector_db = self.get_existing_vector_store(collection_name)
         return vector_db.similarity_search_with_score(query)
     
     def similarity_search_Old(self, collection_name, query):
-        """ Function for similarity search with score 
-            Input:
-                collection_name - Name of the collection where we have to search
-                query - Query to be searched
-            Output: searches the doc and returns similarity chunks with score
-        """
         vector_db = self.get_existing_vector_store(collection_name)
         return vector_db.similarity_search(query)
 
@@ -549,27 +449,10 @@ class DocumentManager():
 
     
     def similarity_search(self, collection_name, query):
-        """ Function for similarity search with score 
-            Input:
-                collection_name - Name of the collection where we have to search
-                query - Query to be searched
-            Output: searches the doc and returns similarity chunks with score
-        """
         vector_db = self.get_existing_vector_store(collection_name)
         return vector_db.similarity_search(query, top_k=5)
 
     def search_relevent_document(self, collection_name, query, **kwargs):
-        """
-        Search for relevant documents in the specified collection using the given query.
-
-        Args:
-            collection_name (str): The name of the collection to search in.
-            query (str): The query string to search for.
-            **kwargs: Additional keyword arguments.
-
-        Returns:
-            list: A list of relevant documents matching the query.
-        """
         vector_db = self.get_existing_vector_store(collection_name)
         retriever = self.get_retriever(vector_db, None, **kwargs)
 
@@ -582,12 +465,6 @@ class DocumentManager():
 
 
     def add_document(self, file_path, collection_name, meta_data):
-        """ Function to add the chunked document to the existing store
-            This function can be only used to add new details to the existing vector collection (Append)
-            But can not be used to update the existing data or to create newly
-            file_path - path to doc/file to read and load
-            documents_chunks - list of doc chunks of type [Document] to be added
-        """
         # Extract file name & type from the full path
         filename, file_extension = os.path.splitext(file_path)
 
